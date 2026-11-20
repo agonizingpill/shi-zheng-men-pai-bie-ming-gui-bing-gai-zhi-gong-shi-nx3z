@@ -1,11 +1,12 @@
 from .models import Entrance,Redirect,Proposal,Notice
 from .common import *
+from .candidate_service import invalidate
 def resolve_root(s,id):
- get(s,Entrance,id);chain=[id];cur=id;mapping={x.source_id:x.target_id for x in rows(s,Redirect) if x.state=='active'}
+ get(s,Entrance,id);mapping={x.source_id:x.target_id for x in rows(s,Redirect) if x.state=='active'}
+ chain=[id];cur=id
  while cur in mapping:
-  cur=mapping[cur]
-  if cur in chain:fail('重定向成环')
-  chain.append(cur)
+  if mapping[cur] in chain:fail('重定向成环')
+  cur=mapping[cur];chain.append(cur)
  return {'requested_id':id,'canonical_id':cur,'chain':chain}
 def activate(s,p,now):
  if any(x.state=='active' and x.source_id==p.source_id for x in rows(s,Redirect)):fail('入口已有生效归并，请先回滚')
@@ -17,4 +18,5 @@ def rollback(s,id,d):
  r.state='rolled_back';r.reason=d['reason'];get(s,Proposal,r.proposal_id).state='rolled_back'
  for n in rows(s,Notice):
   if n.proposal_id==r.proposal_id:n.state='revoked'
+ invalidate(s)
  return r

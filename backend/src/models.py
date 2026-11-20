@@ -21,9 +21,15 @@ class MatchRun(Base):
 class Candidate(Base):
  __tablename__='candidates'
  id=Column(Integer,primary_key=True);run_id=Column(Integer,ForeignKey('match_runs.id'),nullable=False);source_id=Column(Integer,ForeignKey('entrances.id'),nullable=False);target_id=Column(Integer,ForeignKey('entrances.id'),nullable=False);similarity=Column(Float,nullable=False);conflict=Column(Integer,nullable=False)
+ # 打分时的现行归址与命中的别名留档；归址变化后候选置 stale，旧分与别名仍保留供核验
+ source_canonical_id=Column(Integer,nullable=False);target_canonical_id=Column(Integer,nullable=False)
+ source_alias_id=Column(Integer,nullable=True);target_alias_id=Column(Integer,nullable=True)
+ source_alias_text=Column(String(120),default='',nullable=False);target_alias_text=Column(String(120),default='',nullable=False)
+ state=Column(String(20),default='valid',nullable=False);stale_reason=Column(String(200),default='',nullable=False)
 class Proposal(Base):
  __tablename__='proposals'
  id=Column(Integer,primary_key=True);code=Column(String(40),unique=True,nullable=False);source_id=Column(Integer,ForeignKey('entrances.id'),nullable=False);target_id=Column(Integer,ForeignKey('entrances.id'),nullable=False);reason=Column(String(500),nullable=False);state=Column(String(20),default='draft',nullable=False)
+ candidate_id=Column(Integer,ForeignKey('candidates.id'),nullable=True);request_id=Column(String(64),unique=True,nullable=True)
 class Objection(Base):
  __tablename__='objections'
  id=Column(Integer,primary_key=True);proposal_id=Column(Integer,ForeignKey('proposals.id'),nullable=False);code=Column(String(40),unique=True,nullable=False);note=Column(String(500),nullable=False);state=Column(String(20),default='open');decision=Column(String(30),default='');resolution=Column(String(500),default='')

@@ -3,6 +3,7 @@ from .models import Proposal,Notice,Objection,Alias,Evidence
 from .common import *
 from .proposal_service import pair
 from .directory_service import activate
+from .candidate_service import invalidate
 def publish(s,d):
  r=lock(s);p=get(s,Proposal,d['proposal_id'])
  if p.state!='draft':fail('只可公示草稿提案')
@@ -15,7 +16,9 @@ def effective(s,id):
  if n.state!='public' or p.state!='public':fail('公示不是待生效状态')
  if timestamp(r.now)<timestamp(n.ends):fail('公示期限未满')
  if any(x.proposal_id==p.id and x.state=='open' for x in rows(s,Objection)):fail('居民异议未结，不能生效')
- pair(s,p.source_id,p.target_id);redirect=activate(s,p,r.now);n.state='effective';p.state='active';return redirect
+ pair(s,p.source_id,p.target_id);redirect=activate(s,p,r.now);n.state='effective';p.state='active'
+ invalidate(s)
+ return redirect
 def advance(s,d):
  r=lock(s);new=timestamp(d['now'])
  if new<timestamp(r.now):fail('演示时钟不可倒退')

@@ -1,5 +1,5 @@
 import os,redis
-from fastapi import APIRouter,Depends
+from fastapi import APIRouter,Depends,HTTPException
 from .database import Session
 from .models import *
 from .schemas import *
@@ -34,8 +34,23 @@ def matching(u=Depends(current)):
   with Session() as s:x=s.get(MatchRun,d['id']);x.state='failed';x.error='匹配队列不可达，可重新提交';s.commit()
   fail('匹配队列不可达，可重新提交')
  return d
+@router.get('/candidates/{id}')
+def cverify(id:int,u=Depends(current)):
+ with Session() as s:
+  x=get(s,Candidate,id)
+  canon=canonical_map([dump(e) for e in rows(s,Entrance)],[dump(r) for r in rows(s,Redirect)])
+  return {'candidate':dump(x),'source_canonical_id':canon.get(x.source_id),'target_canonical_id':canon.get(x.target_id),'valid':x.state=='valid' and canon.get(x.source_id)==x.source_canonical_id and canon.get(x.target_id)==x.target_canonical_id}
 @router.post('/proposals')
-def pcreate(d:ProposalIn,u=Depends(current)):return change(u,'归并提案',lambda s:proposal.create(s,d.model_dump()))
+def pcreate(d:ProposalIn,u=Depends(current)):
+ allow(u,'operator','supervisor')
+ with Session() as s:
+  try:
+   x,created=proposal.create(s,d.model_dump())
+  except HTTPException:
+   s.commit()  # create 在抛错前只有读操作和候选失效标记，提交即保留该核验留痕
+   raise
+  log(s,u,'归并提案' if created else '归并提案重试',dump(x) if created else {'proposal_id':x.id,'request_id':d.request_id})
+  s.commit();return {'proposal':dump(x),'duplicate':not created}
 @router.post('/objections')
 def ocreate(d:ObjectionIn,u=Depends(current)):return change(u,'登记异议',lambda s:proposal.object_to(s,d.model_dump()))
 @router.post('/objections/{id}/resolve')

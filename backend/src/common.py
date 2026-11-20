@@ -14,3 +14,4 @@ def dump(x):return {c.name:getattr(x,c.name) for c in x.__table__.columns}
 def timestamp(v):
  try:return datetime.fromisoformat(v).replace(tzinfo=None)
  except ValueError:fail('时间必须为ISO格式')
+from .canonical import canonical_map

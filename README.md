@@ -23,7 +23,7 @@ docker compose up -d --build --wait
 
 1. 实地门牌：Entrance记录唯一采集号、街道、门牌数字与经纬度，坐标更正留审计；不因文字近似删除独立入口。
 2. 别名书证：Alias归属入口，Evidence有唯一文件/照片参考号和现场核验说明；来源无证据禁止公示。
-3. 候选归并：真实worker字符TF-IDF与层次聚类给出候选、相似度和数字冲突；Proposal独立记录来源目标和人工理由。同街同号才可形成提案。
+3. 候选归并：真实worker按现行归址汇集别名后做字符TF-IDF与层次聚类，给出候选、相似度和数字冲突；已改址旧门牌的叫法算在其当前正式入口名下，新入口因此能与旧叫法匹配。每处归址只推荐一次，同址入口不互荐；冲突项只列供核验。候选保存打分时的现行归址、旧分和命中的别名。Proposal可凭候选立案，也可人工指定来源目标；同街同号才可形成提案。公示生效或回滚改变归址时，端点涉及该归址变化的候选置stale（旧分和别名仍保留），重算前不能据此立案，其余候选照常可用。立案带request_id幂等：回执丢失后重试返回原提案，不重复立案。
 4. 住户异议：Objection open→resolved，核定维持归并或split拆分；拆分把提案置rejected、公示withdrawn，仍保留两个入口。
 5. 改址公示：Proposal draft→public→active，Notice至少3天；期限未满、异议未结、来源已有有效映射、映射成环均拒绝生效。
 6. 服务目录：Redirect保存source→target及原提案，逐跳解析canonical。回滚置rolled_back并保留原因、公示和原目标；不是删除历史。所有图写操作先锁Registry父资源，防止并发生效绕过单来源约束或无环检查。
@@ -43,13 +43,13 @@ docker compose up -d --build --wait
 
 ## Python计算与可重复性
 
-`matching.py`先将中文十八号规范为18号，char TF-IDF 1–3gram，余弦相似度与AgglomerativeClustering平均连接（预计算距离，阈值0.55）建立别名簇；跨入口最大余弦给出候选，门牌数字/道路不符只列冲突。归并动作不自动执行，必须人工建提案并公示。
+`matching.py`先用现行active映射排出每处入口的canonical，再把别名按canonical汇集；随后中文十八号规范为18号，char TF-IDF 1–3gram，余弦相似度与AgglomerativeClustering平均连接（预计算距离，阈值0.55）建立别名簇；跨归址最大余弦给出候选并记下命中的两条别名，门牌数字/道路不符只列冲突。每处归址只出一张非冲突候选，同址入口不互荐。归并动作不自动执行，必须人工立案并公示。
 
 48个模拟历史标注对按seed42分36训练/12留出；向量器只拟合训练文本，阈值从0.35–0.75仅按训练精确率+召回率选择；最终留出精确率1、召回率1。真实登记语料另行拟合无监督候选，不能把模拟标注得分当真实地址准确率。结果保存训练/留出ID、阈值、源数据SHA256与簇标签。文本不足真实failed，可补别名重新提交新匹配。
 
 ## 代码与开发
 
-Python FastAPI / SQLAlchemy / MySQL8 / Redis7 / scikit-learn；原生HTML/CSS/JS ES modules + Nginx。backend/src/models.py为独立关系模型，schemas.py严格类型与长度范围；entrance_service、proposal_service、publication_service、directory_service分别承担现场、异议、期限、无环图规则。routes.py做JWT角色入口；worker.py运行真实计算；common.py管Registry锁与审计。middlewares.py含RequestTrace/Recovery两中间件。
+Python FastAPI / SQLAlchemy / MySQL8 / Redis7 / scikit-learn；原生HTML/CSS/JS ES modules + Nginx。backend/src/models.py为独立关系模型，schemas.py严格类型与长度范围；entrance_service、proposal_service、publication_service、directory_service、candidate_service分别承担现场、异议、期限、无环图与候选失效规则。routes.py做JWT角色入口；worker.py运行真实计算；common.py管Registry锁、审计与canonical解析。middlewares.py含RequestTrace/Recovery两中间件。
 
 frontend/src/pages下六页与业务模块对应；components/registry.js共享门牌牌面、状态徽标、标题和表单；utils/api.js管理会话与聚合store，utils/format.js管转义与数据类型。角色和状态枚举分别在backend/src/constants.py、frontend/src/constants.js（模型中持久化值同义）。
 

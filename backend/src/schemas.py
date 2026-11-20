@@ -13,7 +13,7 @@ class AliasIn(Input):
 class EvidenceIn(Input):
  alias_id:int;reference:str=Field(min_length=3,max_length=100);description:str=Field(min_length=8,max_length=500)
 class ProposalIn(Input):
- code:str=Field(min_length=2,max_length=40);source_id:int;target_id:int;reason:str=Field(min_length=8,max_length=500)
+ code:str|None=Field(default=None,min_length=2,max_length=40);source_id:int|None=None;target_id:int|None=None;reason:str=Field(min_length=8,max_length=500);candidate_id:int|None=None;request_id:str|None=Field(default=None,min_length=8,max_length=64)
 class ObjectionIn(Input):
  proposal_id:int;code:str=Field(min_length=2,max_length=40);note:str=Field(min_length=8,max_length=500)
 class ResolveIn(Input):
